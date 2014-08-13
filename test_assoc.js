@@ -65,8 +65,9 @@ var Address = sequelize.define( 'Address',
 );
 
 User.hasMany( Task, {as:"Tasks"});
-
+Task.hasOne( User,{as:"User"});
 User.hasOne( Address, {as:"Address"});
+Address.hasOne( User, {as:"User"});
 
 sequelize.sync( {force:true}, {logging:console.log})
     .then( function( args ){
