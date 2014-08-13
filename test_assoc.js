@@ -87,23 +87,52 @@ sequelize.sync( {force:true}, {logging:console.log})
         zip_code:"450213"
     };
 
-    User.create( users[0])
-        .then( function( usr ){
-            var task = Task.build( tasks[0 ]);
-            task.save().success( function( stask ){
-                usr.setTasks([stask]);
+var promiseAddData = function( user ){
+
+    return new Promise( function( fulfill, reject){
+        User.create( users[0])
+            .then( function( usr ){
+                var task = Task.build( tasks[0 ]);
+                task.save().success( function( stask ){
+                    usr.setTasks([stask]);
+                });
+
+                task = Task.build( tasks[1]);
+                task.save().success( function( stask ){
+                    usr.setTasks( [stask ]);
+                });
+
+                var addr = Address.build( address  )  ;
+                addr.save().success( function( saddr ){
+                    usr.setAddress( saddr);
+                });
+                fulfill( usr );
             });
 
-            task = Task.build( tasks[1]);
-            task.save().success( function( stask ){
-                usr.setTasks( [stask ]);
-            });
+    });
+}
+var promiseFindData = function( ){
 
-            var addr = Address.build( address  )  ;
-            addr.save().success( function( saddr ){
-                usr.setAddress( saddr);
-            });
+    return new Promise(  function( fulfill, reject){
+        User.findAll(
+            {
+                where:{id:1},
+                include:[{model:Task}]
+            }
+        ).success( function ( usr ){
+                fulfill( usr );
+            }).error( function( err ){
+                reject( err );
+            })
 
-        });
+    });
+}
 
+  promiseAddData()
+      .then( promiseFindData())
+      .then( function( usr ){
+         console.log( " Queried user is "+usr['name']);
+      }).done();
 })
+
+
