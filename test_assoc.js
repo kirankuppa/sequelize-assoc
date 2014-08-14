@@ -65,9 +65,8 @@ var Address = sequelize.define( 'Address',
 );
 
 User.hasMany( Task, {as:"Tasks"});
-Task.hasOne( User,{as:"User"});
 User.hasOne( Address, {as:"Address"});
-Address.hasOne( User, {as:"User"});
+
 
 sequelize.sync( {force:true}, {logging:console.log})
     .then( function( args ){
@@ -91,49 +90,53 @@ sequelize.sync( {force:true}, {logging:console.log})
 var promiseAddData = function( user ){
 
     return new Promise( function( fulfill, reject){
-        User.create( users[0])
-            .then( function( usr ){
-                var task = Task.build( tasks[0 ]);
-                task.save().success( function( stask ){
-                    usr.setTasks([stask]);
-                });
+        User.create( user)
+            .success( function( usr ){
+                var chainer = new Sequelize.Utils.QueryChainer;
+                var t1 = Task.build( tasks[0 ]),
+                    t2 = Task.build( tasks[1]),
+                    add=Address.build( address  );
 
-                task = Task.build( tasks[1]);
-                task.save().success( function( stask ){
-                    usr.setTasks( [stask ]);
-                });
+                chainer.add(t1.save() );
+                chainer.add(t2.save() );
+                chainer.add(add.save());
+                chainer.runSerially({ skipOnError:true})
+                    .success( function( results ){
+                        var tsk1 = results[0];
+                        var tsk2 = results[1];
+                        var addr = results[2];
 
-                var addr = Address.build( address  )  ;
-                addr.save().success( function( saddr ){
-                    usr.setAddress( saddr);
-                });
-                fulfill( usr );
-            });
+                        usr.setTasks([tsk1,tsk2]).success( function(assocTasks){
+                            usr.setAddress( addr).success( function(assocAddr ) {
+                                fulfill( true );
+                            });
+                        });
+                    }).error( function( err ){
+                        reject( err );
+                    });
 
-    });
-}
-var promiseFindData = function( ){
-
-    return new Promise(  function( fulfill, reject){
-        User.findAll(
-            {
-                where:{id:1},
-                include:[{model:Task}]
-            }
-        ).success( function ( usr ){
-                fulfill( usr );
             }).error( function( err ){
                 reject( err );
-            })
+            });
+
 
     });
 }
 
-  promiseAddData()
-      .then( promiseFindData())
-      .then( function( usr ){
-         console.log( " Queried user is "+usr['name']);
-      }).done();
+  promiseAddData( users[0])
+      .then( function( arg ){
+            User.findAll(
+                {
+                    where:{id:1},
+                    include:[{model:Task,as:"Tasks"}]
+                }
+            ).success( function( result ){
+                console.log(  JSON.stringify(result,null,4 ) );
+            }).error( function( err ){
+                console.log( "ERROR: "+err );
+            });
+
+      });
 })
 
 
